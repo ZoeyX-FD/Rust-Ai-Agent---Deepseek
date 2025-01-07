@@ -1,0 +1,13 @@
+# Ignore Cargo build files
+/target/
+**/*.rs.bk
+
+# Ignore environment files
+.env
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+
+# Ignore macOS system files
+.DS_Store/target
