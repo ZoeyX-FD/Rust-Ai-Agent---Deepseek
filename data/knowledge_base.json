@@ -1,0 +1,14 @@
+[
+  {
+      "keywords": ["rust", "programming"],
+      "content": "Rust is a systems programming language that focuses on safety and performance."
+  },
+  {
+      "keywords": ["AI", "machine learning"],
+      "content": "Artificial Intelligence (AI) involves creating systems that can perform tasks requiring human intelligence."
+  },
+  {
+      "keywords": ["RAG", "retrieval-augmented generation"],
+      "content": "Retrieval-Augmented Generation (RAG) combines retrieval-based methods with generative models to produce informed responses."
+  }
+]
