@@ -2,17 +2,20 @@
 use reqwest::Client;
 use serde_json::json;
 use crate::completion::{CompletionProvider, CompletionError};
+use crate::personality::Personality;
 
 pub struct DeepSeekProvider {
     api_key: String,
     client: Client,
+    personality: Personality,
 }
 
 impl DeepSeekProvider {
-    pub fn new(api_key: String) -> Self {
+    pub fn new(api_key: String, personality: Personality) -> Self {  // Added personality parameter
         Self {
             api_key,
             client: Client::new(),
+            personality,  // Initialize with provided personality
         }
     }
 }
@@ -29,7 +32,7 @@ impl CompletionProvider for DeepSeekProvider {
             .json(&json!({
                 "model": "deepseek-chat",
                 "messages": [
-                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "system", "content": self.personality.system_message()}, // Use personality's system message
                     {"role": "user", "content": prompt}
                 ],
                 "max_tokens": 1000,

@@ -6,12 +6,17 @@ use dotenv::dotenv;
 use crate::memory::{ShortTermMemory, LongTermMemory};
 use crate::providers::deepseek::DeepSeekProvider;
 use crate::completion::CompletionProvider;
-use crate::knowledge_base::knowledge_base::KnowledgeBaseHandler; // Correct if knowledge_base.rs is in src/knowledge_base/
+use crate::knowledge_base::knowledge_base::KnowledgeBaseHandler;
+
+// Include the personality module from the root directory
+#[path = "../personality/personality.rs"]
+mod personality;
+use personality::Personality;
 
 mod memory;
 mod providers;
 mod completion;
-mod knowledge_base; // Declare the knowledge base module
+mod knowledge_base;
 
 // Command-line arguments
 #[derive(Parser, Debug)]
@@ -47,8 +52,9 @@ async fn main() {
         .or_else(|| env::var("DEEPSEEK_API_KEY").ok())
         .expect("DeepSeek API key not provided");
 
-    // Create DeepSeek provider
-    let deepseek_provider = DeepSeekProvider::new(deepseek_api_key);
+    // Initialize with default personality
+    let mut current_personality = Personality::HelpfulAssistant;
+    let mut deepseek_provider = DeepSeekProvider::new(deepseek_api_key.clone(), current_personality.clone());
 
     // Initialize memory
     let mut short_term_memory = ShortTermMemory::new(10); // Store last 10 messages
@@ -61,9 +67,10 @@ async fn main() {
     }
 
     // Initialize the knowledge base handler
-       let knowledge_base_handler = KnowledgeBaseHandler::new("data/knowledge_base.json");
+    let knowledge_base_handler = KnowledgeBaseHandler::new("data/knowledge_base.json");
 
     println!("Welcome to the Rust AI Agent! Type 'exit' to quit.");
+    println!("You can change personality by typing 'helpful', 'friendly', or 'expert'.");
 
     loop {
         print!("You: ");
@@ -79,6 +86,14 @@ async fn main() {
                 error!("Failed to save long-term memory: {}", e);
             }
             break;
+        }
+
+        // Check for personality change
+        if let Some(new_personality) = Personality::from_input(input) {
+            println!("Switching personality to: {:?}", new_personality);
+            current_personality = new_personality.clone();
+            deepseek_provider = DeepSeekProvider::new(deepseek_api_key.clone(), current_personality.clone());
+            continue;
         }
 
         // Add user input to short-term memory
@@ -98,16 +113,15 @@ async fn main() {
             }
         }
 
-         // Retrieve relevant information based on user input
-         let retrieved_info = knowledge_base_handler.retrieve_information(input);
-         println!("Retrieved Information:\n{}", retrieved_info); // Debug print
+        // Retrieve relevant information based on user input
+        let retrieved_info = knowledge_base_handler.retrieve_information(input);
 
         // Prepare context for DeepSeek
         let context = format!(
             "{}\n{}\n{}",
             long_term_memory.retrieve("conversation_summary").unwrap_or(&String::new()),
             short_term_memory.get_context(),
-            retrieved_info  // Retrieve relevant information based on user input
+            retrieved_info
         );
 
         // Send input and context to DeepSeek
