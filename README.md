@@ -1,10 +1,15 @@
-# Rust-Ai-Agent---Deepseek
+# Rust-Ai-Agent - Deepseek
 My 1st project using Rust , Just check , maybe useful  😁
 im noob, start from scratch , learning programming just copy and paste generate code from Ai 😆 😆 , im not dev , this is just test 
 
 to start 
+
 Get your Api key from deepseek 
-and create .env 
+https://platform.deepseek.com/
+
+just only $2 for activated this API
+
+and create .env in you root dir
 
 # DeepSeek Configuration 
 DEEPSEEK_API_KEY=
