@@ -1,15 +1,19 @@
 // src/knowledge_base/knowledge_base.rs
 use serde::Deserialize;
 use std::fs;
+use tokio::fs as tokio_fs;
+use serde_json;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct KnowledgeEntry {
     pub keywords: Vec<String>,
     pub content: String,
 }
 
+#[derive(Clone)]
 pub struct KnowledgeBaseHandler {
     knowledge_base: Vec<KnowledgeEntry>,
+    file_path: String,
 }
 
 impl KnowledgeBaseHandler {
@@ -30,6 +34,7 @@ impl KnowledgeBaseHandler {
 
         Self {
             knowledge_base,
+            file_path: file_path.to_string(),
         }
     }
 
@@ -55,5 +60,34 @@ impl KnowledgeBaseHandler {
             .map(|entry| entry.content.clone())
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    pub async fn get_entry(&self, key: &str) -> Result<Option<String>, Box<dyn std::error::Error>> {
+        let content = tokio_fs::read_to_string(&self.file_path).await?;
+        let data: serde_json::Value = serde_json::from_str(&content)?;
+        
+        if let Some(value) = data.get(key) {
+            if let Some(str_value) = value.as_str() {
+                return Ok(Some(str_value.to_string()));
+            }
+        }
+        
+        Ok(None)
+    }
+
+    pub async fn add_entry(&self, key: &str, value: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let content = tokio_fs::read_to_string(&self.file_path).await?;
+        let mut data: serde_json::Value = serde_json::from_str(&content)?;
+        
+        if let serde_json::Value::Object(ref mut map) = data {
+            map.insert(key.to_string(), serde_json::Value::String(value.to_string()));
+        }
+        
+        tokio_fs::write(&self.file_path, serde_json::to_string_pretty(&data)?).await?;
+        Ok(())
+    }
+
+    pub async fn update_entry(&self, key: &str, value: &str) -> Result<(), Box<dyn std::error::Error>> {
+        self.add_entry(key, value).await
     }
 }

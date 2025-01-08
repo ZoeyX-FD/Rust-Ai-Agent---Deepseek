@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use std::fs;
+use chrono;
 
 #[derive(Serialize, Deserialize)]
 pub struct LongTermMemory {
@@ -17,6 +18,12 @@ impl LongTermMemory {
 
     pub fn store(&mut self, key: String, value: String) {
         self.data.insert(key, value);
+    }
+
+    pub fn add_memory(&mut self, user_input: &str, ai_response: &str) {
+        let key = format!("memory_{}", chrono::Utc::now().timestamp());
+        let value = format!("User: {}\nAssistant: {}", user_input, ai_response);
+        self.store(key, value);
     }
 
     pub fn retrieve(&self, key: &str) -> Option<&String> {
