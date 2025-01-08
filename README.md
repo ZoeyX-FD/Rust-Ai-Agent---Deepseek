@@ -99,7 +99,7 @@ fell free
 ## 💡 Getting Started
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/rust-ai-agent.git
+git clone https://github.com/ZoeyX-FD/Rust-Ai-Agent---Deepseek.git
 
 # Build the project
 cargo build
