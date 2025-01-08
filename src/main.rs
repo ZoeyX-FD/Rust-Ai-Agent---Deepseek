@@ -3,6 +3,7 @@ use std::env;
 use std::io::{self, Write};
 use log::{info, error};
 use dotenv::dotenv;
+use colored::*;
 use crate::memory::{ShortTermMemory, LongTermMemory};
 use crate::providers::deepseek::DeepSeekProvider;
 use crate::completion::CompletionProvider;
@@ -69,18 +70,25 @@ async fn main() {
     // Initialize the knowledge base handler
     let knowledge_base_handler = KnowledgeBaseHandler::new("data/knowledge_base.json");
 
-    println!("Welcome to the Rust AI Agent! Type 'exit' to quit.");
-    println!("You can change personality by typing 'helpful', 'friendly', or 'expert'.");
+    // Welcome message with colored output
+    println!("{}", "Welcome to the Rust AI Agent!".bright_green());
+    println!("Type '{}' to quit.", "exit".bright_red());
+    println!("You can change personality by typing '{}', '{}', or '{}'.", 
+        "helpful".bright_blue(), 
+        "friendly".bright_blue(), 
+        "expert".bright_blue());
 
     loop {
-        print!("You: ");
+        // User input prompt
+        print!("{} ", "You:".bright_cyan());
         io::stdout().flush().unwrap();
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
         let input = input.trim();
 
+        // Exit command
         if input.eq_ignore_ascii_case("exit") {
-            println!("Goodbye!");
+            println!("{}", "Goodbye!".bright_green());
             // Save long-term memory to file before exiting
             if let Err(e) = long_term_memory.save_to_file("memory.json") {
                 error!("Failed to save long-term memory: {}", e);
@@ -88,9 +96,13 @@ async fn main() {
             break;
         }
 
-        // Check for personality change
+        // Personality switching
         if let Some(new_personality) = Personality::from_input(input) {
-            println!("Switching personality to: {:?}", new_personality);
+            println!(
+                "{} {}", 
+                "Switching personality to:".bright_blue(), 
+                new_personality.to_string().bright_yellow()
+            );
             current_personality = new_personality.clone();
             deepseek_provider = DeepSeekProvider::new(deepseek_api_key.clone(), current_personality.clone());
             continue;
@@ -136,6 +148,7 @@ async fn main() {
         // Add AI response to short-term memory
         short_term_memory.add_message(format!("AI: {}", response));
 
-        println!("AI: {}", response);
+        // Print AI response with colored output
+        println!("{} {}", "AI:".bright_magenta(), response.bright_yellow());
     }
 }
