@@ -10,5 +10,8 @@
 .idea/
 
 # Ignore macOS system files
-.DS_Store/target
+.DS_Store
+/target
 
+# Ignore database files
+data/agent.db
