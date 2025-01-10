@@ -1,8 +1,10 @@
 # Rust-Ai-Agent - Deepseek
-My 1st project using Rust , Just check , maybe useful  😁
-im noob, start from scratch , learning programming just copy and paste generate code from Ai 😆 😆 , im not dev , this is just test 
 
-to start 
+"I'm starting my first AI project "
+
+"This is for personal documentation and learning purposes only. im not Developer ,I don't have coding experience, and neither do the others here. However, feel free to try it out if you're interested."
+
+To start 
 
 Get your Api key from deepseek 
 https://platform.deepseek.com/
@@ -24,7 +26,7 @@ DEEPSEEK_TEMPERATURE=0.7
 
 and then 
 
-cargo Run 
+Cargo Run 
 
 happy to chat with ur own deepseek 
 
