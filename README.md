@@ -37,7 +37,7 @@ happy to chat with ur own deepseek
 
 ======================
 
-# Rust AI Agent: Intelligent Conversational System 
+# AiRSZ: Intelligent Conversational System 
 
 ## 🚀 Project Overview
 
