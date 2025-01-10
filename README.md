@@ -1,4 +1,4 @@
-# Rust-Ai-Agent - Deepseek
+# AiRSZ - Deepseek
 
 "I'm starting my first AI project "
 
