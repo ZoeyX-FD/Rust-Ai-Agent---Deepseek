@@ -156,7 +156,15 @@ let custom_character = PersonalityProfile {
 }
 
 Best Practices
+
 Keep character files in characters/ directory
+
 Use meaningful, descriptive filenames
+
 Maintain consistent JSON structure
+
 Experiment with different personality traits
+
+inspired by @elizaOs , @RiG playground , @ZereBro , and others Ai Agentz , 2025 is years Of Ai Agent , lets go 🔥 🔥
+
+Z
