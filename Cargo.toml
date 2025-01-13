@@ -1,0 +1,44 @@
+[package]
+name = "rust-ai-agent"
+version = "0.1.0"
+edition = "2021"
+default-run = "rust-ai-agent"
+
+[dependencies]
+tokio = { version = "1.35.1", features = ["full"] }
+reqwest = { version = "0.11.23", features = ["json"] }
+serde = { version = "1.0.195", features = ["derive"] }
+serde_json = "1.0.111"
+dotenv = "0.15.0"
+colored = "2.0"
+chrono = { version = "0.4.31", features = ["serde"] }
+rand = "0.8.5"
+async-openai = "0.18.0"
+clap = { version = "4.4", features = ["derive"] }
+log = "0.4"
+env_logger = "0.10"
+thiserror = "1.0"
+tokio-rusqlite = "0.4"
+async-trait = "0.1"
+agent-twitter-client = "0.1.2"
+scraper = "0.17"
+url = "2.4"
+html5ever = "0.26"
+urlencoding = "2.1"
+webbrowser = "0.8"
+term_size = "0.3.2"
+syntect = "5.2.0"
+anyhow = "1.0"
+
+[[example]]
+name = "memory_demo"
+path = "examples/memory_demo.rs"
+
+[[example]]
+name = "memory_tests"
+path = "examples/memory_tests.rs"
+test = true
+
+[[example]]
+name = "web_crawler_test"
+path = "examples/web_crawler_test.rs"

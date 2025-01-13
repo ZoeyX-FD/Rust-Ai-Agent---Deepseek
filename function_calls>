@@ -1,0 +1,42 @@
+<invoke name="edit_file">
+<parameter name="target_file">src/main.rs</parameter>
+<parameter name="instructions">I will update the load_personality_from_filename function to use std::env::current_dir()</parameter>
+<parameter name="code_edit">
+fn load_personality_from_filename(filename: &str) -> Option<Personality> {
+    // Get the current working directory and append the characters path
+    let current_dir = std::env::current_dir()
+        .expect("Failed to get current directory");
+    let base_path = current_dir.join("characters");
+    let full_path = base_path.join(filename);
+
+    if !filename.ends_with(".json") {
+        error!("Character file must end with .json");
+        return None;
+    }
+
+    match std::fs::read_to_string(&full_path) {
+        Ok(json_str) => {
+            match PersonalityProfile::from_json(&json_str) {
+                Ok(profile) => Some(Personality::Custom(profile)),
+                Err(e) => {
+                    error!("Failed to parse character JSON: {}", e);
+                    None
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to read character file '{}': {}", filename, e);
+            None
+        }
+    }
+}
+</parameter>
+<parameter name="blocking">true</parameter>
+</invoke>
+
+<invoke name="run_terminal_cmd">
+<parameter name="command">RUST_BACKTRACE=1 cargo run</parameter>
+<parameter name="explanation">Running the program with backtrace enabled to get more detailed error information</parameter>
+<parameter name="is_background">false</parameter>
+<parameter name="require_user_approval">true</parameter>
+</invoke> 
