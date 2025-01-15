@@ -75,42 +75,46 @@ impl WebCrawler {
 
         let final_url = response.url().to_string();
         let html = response.text().await?;
-        
-        // Extract title
-        let title = html
-            .split("<title>")
-            .nth(1)
-            .and_then(|s| s.split("</title>").next())
-            .map(|s| s.to_string());
+        let document = Html::parse_document(&html);
 
-        // Extract text content
-        let text = html
-            .split('>')
-            .filter_map(|part| {
-                let content = part.split('<').next()?;
-                if !content.trim().is_empty() {
-                    Some(content.trim())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<&str>>()
-            .join(" ");
+        // Extract title
+        let title_selector = Selector::parse("title").unwrap();
+        let title = document
+            .select(&title_selector)
+            .next()
+            .map(|title| title.text().collect::<String>());
+
+        // Extract main content
+        let content_selector = Selector::parse("p, h1, h2, h3, ul, ol, li").unwrap();
+        let mut text = String::new();
+        for element in document.select(&content_selector) {
+            let element_text = element.text().collect::<Vec<_>>().join(" ");
+            if !element_text.trim().is_empty() {
+                text.push_str(&format!("- {}\n", element_text));
+            }
+        }
 
         // Extract links
-        let links: Vec<String> = html
-            .split("href=\"")
-            .skip(1)
-            .filter_map(|part| {
-                let url = part.split('"').next()?;
-                if url.starts_with("http") {
-                    Some(url.to_string())
-                } else {
-                    None
-                }
-            })
-            .take(20)
+        let link_selector = Selector::parse("a[href]").unwrap();
+        let links: Vec<String> = document
+            .select(&link_selector)
+            .filter_map(|element| element.value().attr("href"))
+            .filter(|href| href.starts_with("http"))
+            .map(|href| href.to_string())
             .collect();
+
+        // Format output
+        println!("\n# Page Analysis");
+        if let Some(title) = &title {
+            println!("## Title: {}\n", title);
+        }
+        println!("## URL: {}\n", final_url);
+        println!("## Content:\n{}
+", text);
+        println!("## Links:");
+        for link in &links {
+            println!("- {}", link);
+        }
 
         Ok(PageContent {
             url: final_url,
@@ -119,4 +123,4 @@ impl WebCrawler {
             links,
         })
     }
-} 
+}

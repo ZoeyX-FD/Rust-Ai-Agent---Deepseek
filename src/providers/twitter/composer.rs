@@ -78,45 +78,128 @@ impl TweetComposer {
     }
 
     pub async fn generate_auto_post_topic(profile: &PersonalityProfile) -> Result<String> {
-        let deepseek = Self::get_deepseek_provider(profile).await?;
-        let prompt = "Human: Hey! What's something cool you've been thinking about lately?\nAssistant: I'd like to explore:";
-
-        println!("🔍 Prompt tokens (approx): {}", Self::count_tokens(&prompt));
-        let topic = deepseek.complete(&prompt).await?;
-        let token_count = Self::count_tokens(&topic);
-        println!("📊 Response tokens (approx): {}", token_count);
+        let mut prompt_parts = vec![
+            format!("You are {}", profile.name),
+            format!("Role: {}", profile.get_str("description").unwrap_or_default()),
+            format!("Style: {}", profile.get_str("style").unwrap_or_default())
+        ];
         
-        Ok(Self::truncate_content(topic))
+        // Add traits if available
+        if let Some(traits) = profile.get_array("traits") {
+            let trait_list: Vec<_> = traits.iter()
+                .filter_map(|v| v.as_str())
+                .collect();
+            if !trait_list.is_empty() {
+                prompt_parts.push(format!("Traits: {}", trait_list.join(", ")));
+            }
+        }
+
+        // Add interests/expertise
+        if let Some(interests) = profile.get_array("interests") {
+            let interest_list: Vec<_> = interests.iter()
+                .filter_map(|v| v.as_str())
+                .collect();
+            if !interest_list.is_empty() {
+                prompt_parts.push(format!("Expert in: {}", interest_list.join(", ")));
+            }
+        }
+
+        // Add communication preferences
+        if let Some(prefs) = profile.attributes.get("communication_preferences") {
+            if let Some(obj) = prefs.as_object() {
+                if let Some(style) = obj.get("primary_style") {
+                    prompt_parts.push(format!("Communication style: {}", style.as_str().unwrap_or_default()));
+                }
+                if let Some(complexity) = obj.get("complexity") {
+                    prompt_parts.push(format!("Technical level: {}", complexity.as_str().unwrap_or_default()));
+                }
+            }
+        }
+
+        prompt_parts.push("\nTask: Generate a topic for a tweet that aligns with your expertise and interests. The topic should be something you would genuinely want to discuss given your background and personality.\n\nTopic:".to_string());
+
+        let prompt = prompt_parts.join("\n");
+        
+        let provider = Self::get_deepseek_provider(profile).await?;
+        let topic = provider.complete(&prompt).await?;
+        
+        // Clean up the topic
+        let topic = topic.trim()
+            .trim_start_matches("Topic:")
+            .trim_start_matches("\"")
+            .trim_end_matches("\"")
+            .trim();
+        
+        Ok(topic.to_string())
     }
 
     pub async fn generate_auto_tweet(profile: &PersonalityProfile) -> Result<String> {
-        let deepseek = Self::get_deepseek_provider(profile).await?;
+        let topic = Self::generate_auto_post_topic(profile).await?;
         
-        let prompt = "Human: Tell me about that! Share your thoughts in a tweet.\nAssistant: Here's what I want to share:";
-
-        println!("🔍 Prompt tokens (approx): {}", Self::count_tokens(&prompt));
-        let tweet = deepseek.complete(&prompt).await?;
-        let token_count = Self::count_tokens(&tweet);
-        println!("📊 Response tokens (approx): {}", token_count);
+        let mut prompt_parts = vec![
+            format!("You are {}", profile.name),
+            format!("Role: {}", profile.get_str("description").unwrap_or_default()),
+            format!("Style: {}", profile.get_str("style").unwrap_or_default())
+        ];
         
-        // Improved content extraction
-        let clean_tweet = tweet
-            .lines()
-            .filter(|line| !line.is_empty())
-            .find(|line| 
-                !line.starts_with("Human:") && 
-                !line.starts_with("Assistant:") &&
-                !line.starts_with("Certainly!") &&
-                !line.starts_with("Here's") &&
-                !line.contains("Let me know") &&
-                line.len() > 10
-            )
-            .unwrap_or(&tweet)
-            .trim()
-            .trim_matches('"')
-            .to_string();
+        // Add traits if available
+        if let Some(traits) = profile.get_array("traits") {
+            let trait_list: Vec<_> = traits.iter()
+                .filter_map(|v| v.as_str())
+                .collect();
+            if !trait_list.is_empty() {
+                prompt_parts.push(format!("Traits: {}", trait_list.join(", ")));
+            }
+        }
 
-        Ok(Self::truncate_content(clean_tweet))
+        // Add interests/expertise
+        if let Some(interests) = profile.get_array("interests") {
+            let interest_list: Vec<_> = interests.iter()
+                .filter_map(|v| v.as_str())
+                .collect();
+            if !interest_list.is_empty() {
+                prompt_parts.push(format!("Expert in: {}", interest_list.join(", ")));
+            }
+        }
+
+        // Add communication preferences
+        if let Some(prefs) = profile.attributes.get("communication_preferences") {
+            if let Some(obj) = prefs.as_object() {
+                if let Some(style) = obj.get("primary_style") {
+                    prompt_parts.push(format!("Communication style: {}", style.as_str().unwrap_or_default()));
+                }
+                if let Some(complexity) = obj.get("complexity") {
+                    prompt_parts.push(format!("Technical level: {}", complexity.as_str().unwrap_or_default()));
+                }
+            }
+        }
+
+        // Add example tweets if available
+        if let Some(examples) = profile.get_array("example_tweets") {
+            let example_list: Vec<_> = examples.iter()
+                .filter_map(|v| v.as_str())
+                .take(3)  // Limit to 3 examples
+                .collect();
+            if !example_list.is_empty() {
+                prompt_parts.push(format!("\nExample tweets:\n{}", example_list.join("\n")));
+            }
+        }
+
+        prompt_parts.push(format!("\nTask: Write a tweet about the following topic in your unique voice: \"{}\"\n\nThe tweet should reflect your expertise level and personality. Keep it under 280 characters.\n\nTweet:", topic));
+
+        let prompt = prompt_parts.join("\n");
+        
+        let provider = Self::get_deepseek_provider(profile).await?;
+        let tweet = provider.complete(&prompt).await?;
+        
+        // Clean up the tweet
+        let tweet = tweet.trim()
+            .trim_start_matches("Tweet:")
+            .trim_start_matches("\"")
+            .trim_end_matches("\"")
+            .trim();
+        
+        Ok(tweet.to_string())
     }
 
     pub async fn generate_auto_reply(profile: &PersonalityProfile, original_tweet: &str) -> Result<String> {
@@ -153,73 +236,6 @@ impl TweetComposer {
         );
         let response = deepseek.complete(&prompt).await?;
         Ok(Self::truncate_content(response))
-    }
-
-    pub async fn generate_auto_post(profile: &PersonalityProfile) -> Result<String> {
-        let topic = Self::generate_auto_post_topic(profile).await?;
-        println!("📝 Generated topic: \"{}\"", topic);
-        
-        let deepseek = Self::get_deepseek_provider(profile).await?;
-        
-        // Get character-specific tweet templates if available
-        let tweet_templates = if let Some(templates) = profile.attributes.get("tweet_templates") {
-            if let Some(arr) = templates.as_array() {
-                arr.iter()
-                    .filter_map(|v| v.as_str())
-                    .take(3)
-                    .map(|t| format!("- '{}'", t))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            } else {
-                String::new()
-            }
-        } else {
-            String::new()
-        };
-
-        // Use character's style for prompt
-        let style = profile.get_str("style").unwrap_or("professional");
-        let prompt = if !tweet_templates.is_empty() {
-            format!(
-                "Human: Share your thoughts about '{}' in your {} style.\n\
-                 Use one of your signature formats:\n{}\n\
-                 Assistant: Here's my update:", 
-                topic,
-                style,
-                tweet_templates
-            )
-        } else {
-            format!(
-                "Human: Share your thoughts about '{}' in your {} style. Be creative and authentic to your character.\n\
-                 Assistant: Here's my update:", 
-                topic,
-                style
-            )
-        };
-
-        println!("🔍 Prompt tokens (approx): {}", Self::count_tokens(&prompt));
-        let tweet = deepseek.complete(&prompt).await?;
-        let token_count = Self::count_tokens(&tweet);
-        println!("📊 Response tokens (approx): {}", token_count);
-        
-        let clean_tweet = tweet
-            .lines()
-            .filter(|line| !line.is_empty())
-            .find(|line| 
-                !line.starts_with("Human:") && 
-                !line.starts_with("Assistant:") &&
-                !line.starts_with("Certainly!") &&
-                !line.starts_with("Here's") &&
-                !line.starts_with("Just") &&
-                !line.contains("Let me know") &&
-                line.len() > 10
-            )
-            .unwrap_or(&tweet)
-            .trim()
-            .trim_matches('"')
-            .to_string();
-
-        Ok(Self::truncate_content(clean_tweet))
     }
 
     fn truncate_content(content: String) -> String {

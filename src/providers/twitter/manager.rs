@@ -90,25 +90,17 @@ impl ConversationManager {
 
                     let task = tokio::spawn(async move {
                         while auto_post_enabled.load(Ordering::SeqCst) {
-                            // First generate a topic
-                            match TweetComposer::generate_auto_post_topic(&profile).await {
-                                Ok(topic) => {
-                                    println!("📝 Generated topic: \"{}\"", topic);
-                                    // Then generate a tweet about that topic
-                                    match TweetComposer::generate_auto_tweet(&profile).await {
-                                        Ok(tweet_content) => {
-                                            match twitter.post_tweet(&tweet_content, true).await {
-                                                Ok(status) => {
-                                                    println!("✅ Auto-tweet posted successfully!");
-                                                    println!("🔗 Tweet URL: {}", status.url);
-                                                },
-                                                Err(e) => println!("❌ Failed to post tweet: {}", e)
-                                            }
+                            match TweetComposer::generate_auto_tweet(&profile).await {
+                                Ok(tweet_content) => {
+                                    match twitter.post_tweet(&tweet_content, true).await {
+                                        Ok(status) => {
+                                            println!("✅ Auto-tweet posted successfully!");
+                                            println!("🔗 Tweet URL: {}", status.url);
                                         },
-                                        Err(e) => println!("❌ Failed to generate auto-post tweet: {}", e)
+                                        Err(e) => println!("❌ Failed to post tweet: {}", e)
                                     }
                                 },
-                                Err(e) => println!("❌ Failed to generate topic: {}", e)
+                                Err(e) => println!("❌ Failed to generate tweet: {}", e)
                             }
 
                             println!("⏰ Next auto-tweet in {} minutes...", mins);
@@ -382,16 +374,26 @@ impl ConversationManager {
     }
 
     pub async fn generate_and_post_tweet(&self) -> Result<String> {
-        // First generate a topic
+        // Verify and log the current profile
+        let name = self.profile.name.clone();
+        let desc = self.profile.get_str("description").unwrap_or_default();
+        
+        println!("🤖 Generating tweet as: {}", name);
+        println!("Character: {}", desc);
+        
+        // First generate a topic using the verified profile
         let topic = TweetComposer::generate_auto_post_topic(&self.profile).await?;
         println!("📝 Generated topic: \"{}\"", topic);
         
-        // Then generate a tweet about that topic
-        TweetComposer::generate_auto_tweet(&self.profile).await
+        // Then generate a tweet about that topic using the same profile
+        let tweet = TweetComposer::generate_auto_tweet(&self.profile).await?;
+        println!("✍️ Generated tweet in {}'s style", name);
+        Ok(tweet)
     }
 
-    pub async fn direct_tweet(&self, content: &str) -> Result<TweetStatus, Box<dyn std::error::Error + Send + Sync>> {
-        self.twitter.post_tweet(content, false).await
+    pub async fn direct_tweet(&self, content: &str) -> Result<TweetStatus> {
+        self.twitter.post_tweet(content, true).await
+            .map_err(|e| AnyhowError::msg(e.to_string()))
     }
 
     async fn reply_to_tweet(&self, tweet_id: &str, content: &str) -> Result<TweetStatus, Box<dyn std::error::Error + Send + Sync>> {

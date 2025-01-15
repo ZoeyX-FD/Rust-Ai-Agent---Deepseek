@@ -6,6 +6,8 @@ use crate::personality::PersonalityProfile;
 use crate::providers::twitter::manager::ConversationManager;
 use crate::providers::web_crawler::crawler_manager::WebCrawlerManager;
 use crate::completion::CompletionProvider;
+use crate::memory::{ShortTermMemory, LongTermMemory};
+use crate::database::Database;
 
 mod character;
 mod twitter;
@@ -17,21 +19,31 @@ pub struct CommandHandler {
     web_crawler: Option<WebCrawlerManager>,
     deepseek_provider: DeepSeekProvider,
     personality: PersonalityProfile,
+    memory: ShortTermMemory,
+    db: Database,
+    long_term_memory: LongTermMemory,
 }
 
 impl CommandHandler {
-    pub fn new(
+    pub async fn new(
+        personality: PersonalityProfile,
         twitter_manager: Option<ConversationManager>,
         web_crawler: Option<WebCrawlerManager>,
         deepseek_provider: DeepSeekProvider,
-        personality: PersonalityProfile,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, String> {
+        let db = Database::new("agent.db")
+            .await
+            .map_err(|e| format!("Failed to initialize database: {}", e))?;
+
+        Ok(Self {
             twitter_manager,
             web_crawler,
             deepseek_provider,
             personality,
-        }
+            memory: ShortTermMemory::new(),
+            long_term_memory: LongTermMemory::new(),
+            db,
+        })
     }
 
     pub async fn handle_command(&mut self, input: &str) -> Result<(), String> {
@@ -133,28 +145,49 @@ impl CommandHandler {
     }
 
     async fn handle_chat_command(&mut self, input: &str) -> Result<(), String> {
-        // Estimate input tokens (rough approximation: 4 chars = 1 token)
-        let input_tokens = (input.chars().count() as f32 / 4.0).ceil() as usize;
+        // Get recent conversations from database
+        let recent_convos = match self.db.get_recent_conversations(5).await {
+            Ok(convos) => convos,
+            Err(e) => {
+                eprintln!("Warning: Failed to get recent conversations: {}", e);
+                vec![]
+            }
+        };
         
-        match self.deepseek_provider.complete(input).await {
+        // Build context from recent conversations
+        let mut context = String::new();
+        for (_timestamp, user_msg, ai_msg, personality) in recent_convos {
+            if personality == self.personality.name {
+                context.push_str(&format!("User: {}\nAI: {}\n", user_msg, ai_msg));
+            }
+        }
+
+        // Get response from AI with context
+        let prompt = if context.is_empty() {
+            input.to_string()
+        } else {
+            format!("Previous conversation:\n{}\n\nCurrent message: {}", context, input)
+        };
+
+        match self.deepseek_provider.complete(&prompt).await {
             Ok(response) => {
-                // Estimate response tokens
-                let response_tokens = (response.chars().count() as f32 / 4.0).ceil() as usize;
-                
-                self.print_response(
-                    &self.personality.name,
-                    &response,
-                    input_tokens,
-                    response_tokens
-                );
+                // Save to database
+                if let Err(e) = self.db.save_conversation(
+                    input.to_string(), 
+                    response.clone(),
+                    self.personality.name.clone()
+                ).await {
+                    eprintln!("Warning: Failed to save conversation to database: {}", e);
+                }
+
+                println!("{}", response.bright_green());
                 Ok(())
             }
-            Err(e) => Err(format!("Error: {}", e)),
+            Err(e) => Err(format!("Failed to get AI response: {}", e))
         }
     }
 
-    fn print_response(&self, character_name: &str, response: &str, input_tokens: usize, response_tokens: usize) {
-        println!("\n🤖 [{}]", character_name.to_string().bright_yellow());
+    fn print_response(&self, _character_name: &str, response: &str, input_tokens: usize, response_tokens: usize) {
         println!("{}", response);
         println!("\n📊 Tokens: {} in / {} out (total: {})", 
             input_tokens.to_string().cyan(),

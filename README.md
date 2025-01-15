@@ -158,3 +158,35 @@ Keep character files in characters/ directory
 Use meaningful, descriptive filenames
 Maintain consistent JSON structure
 Experiment with different personality traits
+
+# Web Crawler Setup
+
+For web crawling functionality, you need to have a WebDriver running. The easiest way is to use ChromeDriver:
+
+1. Install ChromeDriver:
+   ```bash
+   # For Ubuntu/Debian
+   sudo apt install chromium-chromedriver
+   
+   # For macOS
+   brew install chromedriver
+   
+   # For Windows, download from:
+   # https://chromedriver.chromium.org/downloads
+   ```
+
+2. Start ChromeDriver:
+   ```bash
+   chromedriver --port=4444
+   ```
+
+3. Run the program with web crawler enabled:
+   ```bash
+   cargo run -- --crawler
+   ```
+
+You can also enable the web crawler by setting the environment variable:
+```bash
+export ENABLE_CRAWLER=true
+cargo run
+```

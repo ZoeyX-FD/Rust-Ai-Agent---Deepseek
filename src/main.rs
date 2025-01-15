@@ -5,6 +5,9 @@ use std::fs::File;
 use clap::Parser;
 use colored::Colorize;
 use dotenv::dotenv;
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
+use rustyline::history::DefaultHistory;
 
 use crate::providers::deepseek::DeepSeekProvider;
 use crate::knowledge_base::knowledge_base::KnowledgeBaseHandler;
@@ -17,6 +20,7 @@ use crate::providers::twitter::manager::ConversationManager;
 
 // Web crawler integration
 use crate::providers::web_crawler::crawler_manager::WebCrawlerManager;
+use crate::providers::web_crawler::WebCrawler;
 
 // Command handling
 use crate::commands::CommandHandler;
@@ -109,54 +113,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Initialize learning manager
     let learning_manager = LearningManager::new(database.clone(), knowledge_base_handler.clone());
 
-    // Initialize Twitter integration if enabled
-    let mut twitter_manager = if args.twitter {
-        println!("🐦 Initializing Twitter integration...");
-        match ConversationManager::new(personality_profile.clone()).await {
-            Ok(manager) => {
-                println!("✅ Twitter integration initialized successfully!");
-                Some(manager)
-            },
-            Err(e) => {
-                println!("❌ Failed to initialize Twitter: {}", e);
-                None
-            }
-        }
-    } else {
-        None
-    };
-
-    // Initialize web crawler if enabled
-    let mut web_crawler = if args.crawler || env::var("ENABLE_CRAWLER").map(|val| val == "true").unwrap_or(false) {
-        Some(WebCrawlerManager::new(personality_profile.clone()).await?)
-    } else {
-        None
-    };
-
-    // Create command handler
+    // Initialize command handler
     let mut command_handler = CommandHandler::new(
-        twitter_manager,
-        web_crawler,
+        personality_profile.clone(),
+        if args.twitter {
+            Some(ConversationManager::new(personality_profile.clone()).await?)
+        } else {
+            None
+        },
+        if args.crawler {
+            Some(WebCrawlerManager::new(personality_profile.clone()).await?)
+        } else {
+            None
+        },
         deepseek_provider,
-        personality_profile,
-    );
+    ).await?;
 
     // Show initial help menu
     command_handler.handle_command("help").await?;
 
+    // Initialize rustyline editor
+    let mut rl = Editor::<(), DefaultHistory>::new()?;
+    
     // Main input loop
     loop {
-        print!("👤 ");
-        std::io::stdout().flush().unwrap();
-
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
-        let input = input.trim();
-
-        if let Err(e) = command_handler.handle_command(input).await {
-            println!("{}", e.red());
+        match rl.readline("👤 ") {
+            Ok(line) => {
+                let input = line.trim();
+                rl.add_history_entry(input);
+                
+                if let Err(e) = command_handler.handle_command(input).await {
+                    println!("{}", e.red());
+                }
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
         }
     }
+    Ok(())
 }
 
 fn load_personality_from_filename(filename: &str) -> Option<Personality> {
